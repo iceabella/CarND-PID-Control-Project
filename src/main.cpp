@@ -35,25 +35,19 @@ int main()
   uWS::Hub h;
 
   PID pid;
-  // TODO: Initialize the pid variable.
-  pid.Init(0.05,0,0,0.1,0,0);
-  //bool prev_meas = false;
+  // Initialize the pid variable.
+  pid.Init(0.07,0.0015,0.06,0.1,0,0);
+  std::cout << "Kp = " << pid.Kp_s_ << " Ki = " << pid.Ki_s_ << " Kd = " << pid.Kd_s_ << std::endl;
   
   // initialize variable to store previous time stamp
   std::chrono::time_point<std::chrono::system_clock> prev_time;
   
-  // define constant used for steering angle calculation
-  const double max_steer = 1.0;
-  // define variables used for calculation of steering angle         
-  //double sum_cte; 
-  //double prev_cte;    
+  // define maximum allowed steering input
+  const double max_steer = 1.0; 
   
-  // define constants used for throttle calculation
-  const double v_nominal = 20;
-  const double max_throttle = 0.3;
-  // define variables used to store previous data for throttle calculation
-  //double v_sum_cte; 
-  //double v_prev_cte;
+  // define nominal speed and maximum allowed throttle, used for throttle calculation
+  const double v_nominal = 50;
+  const double max_throttle = 0.5;
 
   h.onMessage([&pid, &prev_time, &max_steer, &v_nominal, &max_throttle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -67,23 +61,18 @@ int main()
         std::string event = j[0].get<std::string>();
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          double cte = std::stod(j[1]["cte"].get<std::string>());
-          double speed = std::stod(j[1]["speed"].get<std::string>());
-          double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-          /*
-          * TODO: Calcuate steering value here, remember the steering value is
-          * [-1, 1].
-          * NOTE: Feel free to play around with the throttle and speed. Maybe use
-          * another PID controller to control the speed!
-          */
-          
+          double s_cte = std::stod(j[1]["cte"].get<std::string>());
+          double v = std::stod(j[1]["speed"].get<std::string>());
+          //double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+   
+          // ***** CALCULATE STEERING AND THROTTLE COMMANDS *****
           
           // Initialize values          
           if(!pid.prev_meas_){
-            pid.s_prev_cte_ = cte;
+            pid.s_prev_cte_ = s_cte;
             // define start time as now
             prev_time = std::chrono::system_clock::now();
-            pid.v_prev_cte_ = v_nominal - speed; 
+            pid.v_prev_cte_ = v - v_nominal; 
             
             // we have got our first data
             pid.prev_meas_ = true; 
@@ -91,20 +80,18 @@ int main()
           // Get time interval  
           std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-prev_time;
           double dt = elapsed_seconds.count();
-          
-          std::cout << "dt = " << dt << std::endl;
-          
+                  
           // save time stamp of this data cte to be used in next cycle
           prev_time = std::chrono::system_clock::now();
           
           // Error between current and nominal speed       
-          double v_cte = speed - v_nominal;
+          double v_cte = v - v_nominal;
           
           // update errors for steering and throttle
-          pid.UpdateError(cte, v_cte, dt);
+          pid.UpdateError(s_cte, v_cte, dt);
+          
           // get total steering error
           double steer_value = pid.TotalSteeringError();
- 
           // Make sure steering values are within min and max limit
           if(steer_value > max_steer)
             steer_value = max_steer;
@@ -112,24 +99,21 @@ int main()
             steer_value = -max_steer;
             
           // get total throttle error
-          double throttle_value = pid.TotalThrottleError();
-          
+          double throttle_value = pid.TotalThrottleError();         
           // Make sure trottle values are within min and max limit
           if(throttle_value > max_throttle)
             throttle_value = max_throttle;
           if(throttle_value < -max_throttle)
-            throttle_value = -max_throttle;
-          std::cout << "throttle value= " << throttle_value << std::endl;
-                      
+            throttle_value = -max_throttle;                  
 
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+          //std::cout << "CTE: " << s_cte << " Steering Value: " << steer_value << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
