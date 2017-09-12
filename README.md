@@ -1,6 +1,9 @@
 # CarND-Controls-PID
 This is my implementation of the PID project for Udacity's Self-Driving Car Engineer Nanodegree Program.
 
+## Project introduction
+In this project a PID controller is used to calculate the steering angle and throttle actuations for driving around a test track in [this Udacity simulator](https://github.com/udacity/self-driving-car-sim/releases). The inputs to the PID controller from the simulator are vehicle velocity and the cross track error to a reference trajectory. 
+
 ## Parameter tuning and effect of different P, I, D gains
 For the throttle I only used a simple P-controller since I didn't feel that a more advanced controller was needed. The error I tried to controll towards was the current vehicle speed compared to the wanted/nominal speed.
 
